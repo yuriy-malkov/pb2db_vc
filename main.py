@@ -121,9 +121,8 @@ def synchronize_tables_with_proto(schema):
 
             if set(primary_key_fields) != set(existing_primary_key_fields):
                 updated_primary_keys = ", ".join(primary_key_fields)
-                update_primary_keys(cursor, table_name, updated_primary_keys )
+                update_primary_keys(cursor, table_name, updated_primary_keys)
                 connection.commit()
-
 
     # Drop tables that are no longer in the schema
     for table_name in existing_tables:
