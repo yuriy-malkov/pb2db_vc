@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import descriptor_pb2 as google_dot_protobuf_dot_descriptor__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nuser.proto\x1a google/protobuf/descriptor.proto\"\x8d\x01\n\x04User\x12\x17\n\x02id\x18\x01 \x01(\x03\x42\x0b\x88\xb5\x18\x01\x92\xb5\x18\x03INT\x12#\n\tfirstName\x18\x02 \x01(\tB\x10\x92\xb5\x18\x0cVARCHAR(255)\x12\"\n\x08lastName\x18\x03 \x01(\tB\x10\x92\xb5\x18\x0cVARCHAR(255)\x12#\n\x05\x65mail\x18\x04 \x01(\tB\x14\x88\xb5\x18\x01\x92\xb5\x18\x0cVARCHAR(255):4\n\x0bprimary_key\x12\x1d.google.protobuf.FieldOptions\x18\xd1\x86\x03 \x01(\x08:4\n\x0b\x64\x62_dataType\x12\x1d.google.protobuf.FieldOptions\x18\xd2\x86\x03 \x01(\tb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nuser.proto\x1a google/protobuf/descriptor.proto\"\x89\x01\n\x04User\x12\x17\n\x02id\x18\x01 \x01(\x03\x42\x0b\x88\xb5\x18\x01\x92\xb5\x18\x03INT\x12#\n\tfirstName\x18\x02 \x01(\tB\x10\x92\xb5\x18\x0cVARCHAR(255)\x12\"\n\x08lastName\x18\x03 \x01(\tB\x10\x92\xb5\x18\x0cVARCHAR(255)\x12\x1f\n\x05\x65mail\x18\x04 \x01(\tB\x10\x92\xb5\x18\x0cVARCHAR(255):4\n\x0bprimary_key\x12\x1d.google.protobuf.FieldOptions\x18\xd1\x86\x03 \x01(\x08:4\n\x0b\x64\x62_dataType\x12\x1d.google.protobuf.FieldOptions\x18\xd2\x86\x03 \x01(\tb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -31,7 +31,7 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _USER.fields_by_name['lastName']._options = None
   _USER.fields_by_name['lastName']._serialized_options = b'\222\265\030\014VARCHAR(255)'
   _USER.fields_by_name['email']._options = None
-  _USER.fields_by_name['email']._serialized_options = b'\210\265\030\001\222\265\030\014VARCHAR(255)'
+  _USER.fields_by_name['email']._serialized_options = b'\222\265\030\014VARCHAR(255)'
   _globals['_USER']._serialized_start=49
-  _globals['_USER']._serialized_end=190
+  _globals['_USER']._serialized_end=186
 # @@protoc_insertion_point(module_scope)
