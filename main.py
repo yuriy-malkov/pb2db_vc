@@ -88,6 +88,14 @@ def update_primary_keys(cursor, table_name, updated_primary_keys):
     cursor.execute(update_primary_keys_query)
 
 
+def drop_existing_fields(cursor, table_name, fields_to_drop: set):
+    drop_existing_fields_query = f"ALTER TABLE {table_name} "
+    for field in fields_to_drop:
+        drop_existing_fields_query += f"DROP COLUMN IF EXISTS {field},"
+    drop_existing_fields_query = drop_existing_fields_query.rstrip(",")
+    cursor.execute(drop_existing_fields_query)
+
+
 def add_new_fields(cursor, table_name, fields):
     add_new_fields_query = f"ALTER TABLE {table_name} "
     for field in fields:
@@ -116,6 +124,8 @@ def synchronize_tables_with_proto(schema):
             existing_fields_names: list = get_existing_fields(cursor, table_name)
             existing_primary_key_fields: list = get_existing_primary_fields(cursor, table_name)
             if set(fields_names) != set(existing_fields_names):
+                fields_to_drop: set = set(existing_fields_names).difference(set(fields_names))
+                drop_existing_fields(cursor, table_name, fields_to_drop)
                 add_new_fields(cursor, table_name, fields)
                 connection.commit()
 
