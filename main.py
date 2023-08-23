@@ -2,27 +2,13 @@ import mariadb
 import sys
 import example1.generated.user_pb2 as user_pb2
 
-# Connect to MariaDB Platform
-try:
-    db_name = "test1"
-    connection = mariadb.connect(
-        user="root",
-        password="root",
-        host="127.0.0.1",
-        port=3306,
-        database=db_name
-    )
-except mariadb.Error as e:
-    print(f"Error connecting to database: {e}")
-    sys.exit(1)
-
 
 def get_existing_tables(cursor):
     cursor.execute("SHOW TABLES")
     return [table[0] for table in cursor.fetchall()]
 
 
-def get_existing_primary_fields(cursor, table_name):
+def get_existing_primary_fields(cursor, db_name, table_name):
     get_primary_fields_query = (f"SELECT COLUMN_NAME "
                                 f"FROM INFORMATION_SCHEMA.COLUMNS "
                                 f"WHERE TABLE_SCHEMA = '{db_name}' "
@@ -32,7 +18,7 @@ def get_existing_primary_fields(cursor, table_name):
     return [table[0] for table in cursor.fetchall()]
 
 
-def get_existing_fields(cursor, table_name):
+def get_existing_fields(cursor, db_name, table_name):
     get_existing_fields_query = (f"SELECT COLUMN_NAME "
                                  f"FROM INFORMATION_SCHEMA.COLUMNS "
                                  f"WHERE TABLE_SCHEMA = '{db_name}' "
@@ -44,14 +30,14 @@ def get_existing_fields(cursor, table_name):
 def create_table_if_not_exists(cursor, table_name, fields):
     create_table_query = f"CREATE TABLE IF NOT EXISTS {table_name} ("
     for field in fields:
-        db_data_type = field.GetOptions().Extensions[user_pb2.db_dataType]
+        db_data_type = field.GetOptions().Extensions[user_pb2.dbDataType]
         create_table_query += f"{field.name} {db_data_type}, "
     create_table_query = create_table_query.rstrip(", ") + ")"
     cursor.execute(create_table_query)
 
 
 def get_primary_key_fields(message_descriptor):
-    return [field.name for field in message_descriptor.fields if field.GetOptions().Extensions[user_pb2.primary_key]]
+    return [field.name for field in message_descriptor.fields if field.GetOptions().Extensions[user_pb2.primaryKey]]
 
 
 def create_primary_key_constraint(cursor, table_name, primary_key_fields):
@@ -99,51 +85,72 @@ def drop_existing_fields(cursor, table_name, fields_to_drop: set):
 def add_new_fields(cursor, table_name, fields):
     add_new_fields_query = f"ALTER TABLE {table_name} "
     for field in fields:
-        db_data_type = field.GetOptions().Extensions[user_pb2.db_dataType]
+        db_data_type = field.GetOptions().Extensions[user_pb2.dbDataType]
         add_new_fields_query += f"ADD COLUMN IF NOT EXISTS {field.name} {db_data_type}, "
     add_new_fields_query = add_new_fields_query.rstrip(", ")
     cursor.execute(add_new_fields_query)
 
 
-def synchronize_tables_with_proto(schema):
+def synchronize_tables_with_proto(db_messages, connection):
+    db_name = connection.database
     cursor = connection.cursor()
     existing_tables = get_existing_tables(cursor)
 
-    for message_descriptor in schema.message_types_by_name.values():
-        table_name = get_table_name(message_descriptor)
-        fields = get_fields(message_descriptor)
-        primary_key_fields: list = get_primary_key_fields(message_descriptor)
+    for message_descriptor in db_messages:
+        if message_descriptor.GetOptions().Extensions[user_pb2.dbTable]:
+            table_name = get_table_name(message_descriptor)
+            fields = get_fields(message_descriptor)
+            primary_key_fields: list = get_primary_key_fields(message_descriptor)
 
-        if table_name not in existing_tables:
-            create_table_if_not_exists(cursor, table_name, fields)
-            create_primary_key_constraint(cursor, table_name, primary_key_fields)
-            connection.commit()
-
-        else:
-            fields_names: list = get_fields_name(fields)
-            existing_fields_names: list = get_existing_fields(cursor, table_name)
-            existing_primary_key_fields: list = get_existing_primary_fields(cursor, table_name)
-            if set(fields_names) != set(existing_fields_names):
-                fields_to_drop: set = set(existing_fields_names).difference(set(fields_names))
-                drop_existing_fields(cursor, table_name, fields_to_drop)
-                add_new_fields(cursor, table_name, fields)
+            if table_name not in existing_tables:
+                create_table_if_not_exists(cursor, table_name, fields)
+                create_primary_key_constraint(cursor, table_name, primary_key_fields)
                 connection.commit()
 
-            if set(primary_key_fields) != set(existing_primary_key_fields):
-                updated_primary_keys = ", ".join(primary_key_fields)
-                update_primary_keys(cursor, table_name, updated_primary_keys)
-                connection.commit()
+            else:
+                fields_names: list = get_fields_name(fields)
+                existing_fields_names: list = get_existing_fields(cursor, db_name, table_name)
+                existing_primary_key_fields: list = get_existing_primary_fields(cursor, db_name, table_name)
+                if set(fields_names) != set(existing_fields_names):
+                    fields_to_drop: set = set(existing_fields_names).difference(set(fields_names))
+                    drop_existing_fields(cursor, table_name, fields_to_drop)
+                    add_new_fields(cursor, table_name, fields)
+                    connection.commit()
+
+                if set(primary_key_fields) != set(existing_primary_key_fields):
+                    updated_primary_keys = ", ".join(primary_key_fields)
+                    update_primary_keys(cursor, table_name, updated_primary_keys)
+                    connection.commit()
 
     # Drop tables that are no longer in the schema
     for table_name in existing_tables:
-        if table_name not in [get_table_name(msg) for msg in schema.message_types_by_name.values()]:
+        if table_name not in [get_table_name(msg) for msg in db_messages]:
             drop_table(cursor, table_name)
             connection.commit()
 
     cursor.close()
 
 
-# Usage
-synchronize_tables_with_proto(user_pb2.DESCRIPTOR)
+def main():
+    # Connect to MariaDB Platform
+    try:
+        connection = mariadb.connect(
+            user="root",
+            password="root",
+            host="127.0.0.1",
+            port=3306,
+            database="test1"
+        )
+    except mariadb.Error as e:
+        print(f"Error connecting to database: {e}")
+        sys.exit(1)
 
-connection.close()
+    # Usage
+    messages = user_pb2.DESCRIPTOR.message_types_by_name.values()
+    db_messages = [message for message in messages if message.GetOptions().Extensions[user_pb2.dbTable]]
+    synchronize_tables_with_proto(db_messages, connection)
+    connection.close()
+
+
+if __name__ == "__main__":
+    main()

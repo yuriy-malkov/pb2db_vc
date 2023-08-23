@@ -3,14 +3,29 @@ syntax = "proto3";
 import "google/protobuf/descriptor.proto";
 
 extend google.protobuf.FieldOptions {
-    bool primary_key = 50001;
-    string db_dataType = 50002;
+    bool primaryKey = 50001;
+    string dbDataType = 50002;
+}
+
+extend google.protobuf.MessageOptions {
+    bool dbTable = 50003;
 }
 
 message User {
-    int64 id = 1 [(db_dataType) = "INT", (primary_key) = true];
-    string firstName = 2 [(db_dataType) = "VARCHAR(255)"];
-    string lastName = 3 [(db_dataType) = "VARCHAR(255)"];
-    string email = 4 [(db_dataType) = "VARCHAR(255)",  (primary_key) = true];
+    option (dbTable) = true;
+    int64 id = 1 [(dbDataType) = "INT", (primaryKey) = true];
+    string firstName = 2 [(dbDataType) = "VARCHAR(255)"];
+    string lastName = 3 [(dbDataType) = "VARCHAR(255)"];
+    string email = 4 [(dbDataType) = "VARCHAR(255)"];
+    string address = 5 [(dbDataType) = "VARCHAR(255)"];
 }
 
+message GetUserInfoRequest {
+    string email = 1;
+}
+
+message UserInfoResponse {
+    string email = 1;
+    string firstName = 2;
+    string lastName = 3;
+}

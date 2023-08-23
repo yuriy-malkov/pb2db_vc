@@ -14,14 +14,15 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import descriptor_pb2 as google_dot_protobuf_dot_descriptor__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nuser.proto\x1a google/protobuf/descriptor.proto\"\x8d\x01\n\x04User\x12\x17\n\x02id\x18\x01 \x01(\x03\x42\x0b\x88\xb5\x18\x01\x92\xb5\x18\x03INT\x12#\n\tfirstName\x18\x02 \x01(\tB\x10\x92\xb5\x18\x0cVARCHAR(255)\x12\"\n\x08lastName\x18\x03 \x01(\tB\x10\x92\xb5\x18\x0cVARCHAR(255)\x12#\n\x05\x65mail\x18\x04 \x01(\tB\x14\x88\xb5\x18\x01\x92\xb5\x18\x0cVARCHAR(255):4\n\x0bprimary_key\x12\x1d.google.protobuf.FieldOptions\x18\xd1\x86\x03 \x01(\x08:4\n\x0b\x64\x62_dataType\x12\x1d.google.protobuf.FieldOptions\x18\xd2\x86\x03 \x01(\tb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nuser.proto\x1a google/protobuf/descriptor.proto\"\xb2\x01\n\x04User\x12\x17\n\x02id\x18\x01 \x01(\x03\x42\x0b\x88\xb5\x18\x01\x92\xb5\x18\x03INT\x12#\n\tfirstName\x18\x02 \x01(\tB\x10\x92\xb5\x18\x0cVARCHAR(255)\x12\"\n\x08lastName\x18\x03 \x01(\tB\x10\x92\xb5\x18\x0cVARCHAR(255)\x12\x1f\n\x05\x65mail\x18\x04 \x01(\tB\x10\x92\xb5\x18\x0cVARCHAR(255)\x12!\n\x07\x61\x64\x64ress\x18\x05 \x01(\tB\x10\x92\xb5\x18\x0cVARCHAR(255):\x04\x98\xb5\x18\x01\"#\n\x12GetUserInfoRequest\x12\r\n\x05\x65mail\x18\x01 \x01(\t\"F\n\x10UserInfoResponse\x12\r\n\x05\x65mail\x18\x01 \x01(\t\x12\x11\n\tfirstName\x18\x02 \x01(\t\x12\x10\n\x08lastName\x18\x03 \x01(\t:3\n\nprimaryKey\x12\x1d.google.protobuf.FieldOptions\x18\xd1\x86\x03 \x01(\x08:3\n\ndbDataType\x12\x1d.google.protobuf.FieldOptions\x18\xd2\x86\x03 \x01(\t:2\n\x07\x64\x62Table\x12\x1f.google.protobuf.MessageOptions\x18\xd3\x86\x03 \x01(\x08\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'user_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
-  google_dot_protobuf_dot_descriptor__pb2.FieldOptions.RegisterExtension(primary_key)
-  google_dot_protobuf_dot_descriptor__pb2.FieldOptions.RegisterExtension(db_dataType)
+  google_dot_protobuf_dot_descriptor__pb2.FieldOptions.RegisterExtension(primaryKey)
+  google_dot_protobuf_dot_descriptor__pb2.FieldOptions.RegisterExtension(dbDataType)
+  google_dot_protobuf_dot_descriptor__pb2.MessageOptions.RegisterExtension(dbTable)
 
   DESCRIPTOR._options = None
   _USER.fields_by_name['id']._options = None
@@ -31,7 +32,15 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _USER.fields_by_name['lastName']._options = None
   _USER.fields_by_name['lastName']._serialized_options = b'\222\265\030\014VARCHAR(255)'
   _USER.fields_by_name['email']._options = None
-  _USER.fields_by_name['email']._serialized_options = b'\210\265\030\001\222\265\030\014VARCHAR(255)'
+  _USER.fields_by_name['email']._serialized_options = b'\222\265\030\014VARCHAR(255)'
+  _USER.fields_by_name['address']._options = None
+  _USER.fields_by_name['address']._serialized_options = b'\222\265\030\014VARCHAR(255)'
+  _USER._options = None
+  _USER._serialized_options = b'\230\265\030\001'
   _globals['_USER']._serialized_start=49
-  _globals['_USER']._serialized_end=190
+  _globals['_USER']._serialized_end=227
+  _globals['_GETUSERINFOREQUEST']._serialized_start=229
+  _globals['_GETUSERINFOREQUEST']._serialized_end=264
+  _globals['_USERINFORESPONSE']._serialized_start=266
+  _globals['_USERINFORESPONSE']._serialized_end=336
 # @@protoc_insertion_point(module_scope)
