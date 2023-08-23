@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.FieldOptions {
+    bool primary_key = 50001;
+    string db_dataType = 50002;
+}
+
+message User {
+    int64 id = 1 [(db_dataType) = "INT", (primary_key) = true];
+    string firstName = 2 [(db_dataType) = "VARCHAR(255)"];
+    string lastName = 3 [(db_dataType) = "VARCHAR(255)"];
+    string email = 4 [(db_dataType) = "VARCHAR(255)",  (primary_key) = true];
+}
+
