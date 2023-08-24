@@ -1,4 +1,4 @@
 .idea
 venv
 
-example1/generated/__pycache__
+example1/generated
