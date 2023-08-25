@@ -2,22 +2,26 @@ syntax = "proto3";
 
 import "google/protobuf/descriptor.proto";
 
-extend google.protobuf.FieldOptions {
-    bool primaryKey = 50001;
-    string dbDataType = 50002;
+extend google.protobuf.MessageOptions {
+    bool dbTable = 50001;
 }
 
-extend google.protobuf.MessageOptions {
-    bool dbTable = 50003;
+extend google.protobuf.FieldOptions {
+    bool primaryKey = 50100;
+    string dbDataType = 50101;
+    bool notNull = 50102;
+    bool autoIncrement = 50103;
+    string defaultValue = 50104;
 }
 
 message User {
     option (dbTable) = true;
-    int64 id = 1 [(dbDataType) = "INT", (primaryKey) = true];
+    int64 id = 1 [(dbDataType) = "MEDIUMINT", (primaryKey) = true, (notNull) = true, (autoIncrement) = true];
     string firstName = 2 [(dbDataType) = "VARCHAR(255)"];
     string lastName = 3 [(dbDataType) = "VARCHAR(255)"];
-    string email = 4 [(dbDataType) = "VARCHAR(255)"];
-    string address = 5 [(dbDataType) = "VARCHAR(255)"];
+    string email = 4 [(dbDataType) = "VARCHAR(255)", (notNull) = true];
+    string address = 5 [(dbDataType) = "VARCHAR(255)", (defaultValue) = "'10 Lafferty Street'"];
+    string secretToken = 6 [(dbDataType) = "VARCHAR(255)", (defaultValue) = ""];
 }
 
 message GetUserInfoRequest {

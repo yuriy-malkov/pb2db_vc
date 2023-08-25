@@ -85,9 +85,26 @@ def drop_existing_fields(cursor, table_name, fields_to_drop: set):
 def add_new_fields(cursor, table_name, fields):
     add_new_fields_query = f"ALTER TABLE {table_name} "
     for field in fields:
-        db_data_type = field.GetOptions().Extensions[user_pb2.dbDataType]
-        add_new_fields_query += f"ADD COLUMN IF NOT EXISTS {field.name} {db_data_type}, "
+        field_name = field.name
+        db_options = field.GetOptions().ListFields()  # Get all options as a list of (name, value) pairs
+        db_options_map = {option[0].name: option[1] for option in db_options}  # Convert list to a dictionary
+        try:
+            data_type = db_options_map['dbDataType']
+        except KeyError:
+            raise ValueError(f"DataType for the {field_name} is missing")
+        not_null = 'NOT NULL' if db_options_map.get('notNull', False) else ''
+        primary_key = 'PRIMARY KEY' if db_options_map.get('primaryKey', False) else ''
+        auto_increment = 'AUTO_INCREMENT' if db_options_map.get('autoIncrement', False) else ''
+        default_value = f"DEFAULT {db_options_map['defaultValue']}" if db_options_map.get('defaultValue') else ''
+        add_new_fields_query += (f"ADD COLUMN IF NOT EXISTS "
+                                 f"{field_name} "
+                                 f"{data_type} "
+                                 f"{default_value} "
+                                 f"{not_null} "
+                                 f"{primary_key} "
+                                 f"{auto_increment}, ")
     add_new_fields_query = add_new_fields_query.rstrip(", ")
+    print(add_new_fields_query)
     cursor.execute(add_new_fields_query)
 
 
@@ -97,30 +114,32 @@ def synchronize_tables_with_proto(db_messages, connection):
     existing_tables = get_existing_tables(cursor)
 
     for message_descriptor in db_messages:
-        if message_descriptor.GetOptions().Extensions[user_pb2.dbTable]:
-            table_name = get_table_name(message_descriptor)
-            fields = get_fields(message_descriptor)
-            primary_key_fields: list = get_primary_key_fields(message_descriptor)
+        table_name = get_table_name(message_descriptor)
+        fields = get_fields(message_descriptor)
+        primary_key_fields: list = get_primary_key_fields(message_descriptor)
 
-            if table_name not in existing_tables:
-                create_table_if_not_exists(cursor, table_name, fields)
-                create_primary_key_constraint(cursor, table_name, primary_key_fields)
+        if table_name not in existing_tables:
+            create_table_if_not_exists(cursor, table_name, fields)
+            create_primary_key_constraint(cursor, table_name, primary_key_fields)
+            connection.commit()
+
+        else:
+            fields_names: list = get_fields_name(fields)
+            existing_fields_names: list = get_existing_fields(cursor, db_name, table_name)
+            existing_primary_key_fields: list = get_existing_primary_fields(cursor, db_name, table_name)
+
+            # Check if fields were dropped and/or added
+            if set(fields_names) != set(existing_fields_names):
+                fields_to_drop: set = set(existing_fields_names).difference(set(fields_names))
+                drop_existing_fields(cursor, table_name, fields_to_drop)
+                add_new_fields(cursor, table_name, fields)
                 connection.commit()
 
-            else:
-                fields_names: list = get_fields_name(fields)
-                existing_fields_names: list = get_existing_fields(cursor, db_name, table_name)
-                existing_primary_key_fields: list = get_existing_primary_fields(cursor, db_name, table_name)
-                if set(fields_names) != set(existing_fields_names):
-                    fields_to_drop: set = set(existing_fields_names).difference(set(fields_names))
-                    drop_existing_fields(cursor, table_name, fields_to_drop)
-                    add_new_fields(cursor, table_name, fields)
-                    connection.commit()
-
-                if set(primary_key_fields) != set(existing_primary_key_fields):
-                    updated_primary_keys = ", ".join(primary_key_fields)
-                    update_primary_keys(cursor, table_name, updated_primary_keys)
-                    connection.commit()
+            # Check if field attributes were changed
+            if set(primary_key_fields) != set(existing_primary_key_fields):
+                updated_primary_keys = ", ".join(primary_key_fields)
+                update_primary_keys(cursor, table_name, updated_primary_keys)
+                connection.commit()
 
     # Drop tables that are no longer in the schema
     for table_name in existing_tables:
@@ -154,3 +173,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
