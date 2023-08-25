@@ -8,6 +8,14 @@ def get_database_tables(cursor):
     return [columns[0] for columns in cursor.fetchall()]
 
 
+def get_database_fields_names(database_fields):
+    return [list(field.keys())[0] for field in database_fields]
+
+
+def get_primary_keys_from_database(database_fields):
+    return [list(field.keys())[0] for field in database_fields if 'PRI' in field.get(list(field.keys())[0], [])]
+
+
 def get_existing_primary_fields(cursor, db_name, table_name):
     get_primary_fields_query = (f"SELECT COLUMN_NAME "
                                 f"FROM INFORMATION_SCHEMA.COLUMNS "
@@ -18,16 +26,18 @@ def get_existing_primary_fields(cursor, db_name, table_name):
     return [columns[0] for columns in cursor.fetchall()]
 
 
-def get_existing_fields(cursor, db_name, table_name):
+def get_database_fields_options(cursor, db_name, table_name):
     result_list: list = []
-    get_existing_fields_query = (f"SELECT COLUMN_NAME, DATA_TYPE, COLUMN_DEFAULT, IS_NULLABLE, EXTRA, COLUMN_KEY "
+    get_existing_fields_query = (f"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, COLUMN_DEFAULT, IS_NULLABLE, EXTRA, COLUMN_KEY "
                                  f"FROM INFORMATION_SCHEMA.COLUMNS "
                                  f"WHERE TABLE_SCHEMA = '{db_name}' "
                                  f"AND TABLE_NAME = '{table_name}';")
     cursor.execute(get_existing_fields_query)
-    for columns in cursor.fetchall():
-        filtered_columns = [item for item in columns[1:] if item is not None and item.strip() != '']
-        filtered_columns_map = {columns[0]: filtered_columns}
+    for fields in cursor.fetchall():
+        filtered_columns = [field for field in fields[1:] if field is not None and field.strip() != '']
+        filtered_columns_map = {fields[0]: filtered_columns}
+        # filtered_columns_map = {fields[0]: fields[1:]}
+        print(filtered_columns_map)
         result_list.append(filtered_columns_map)
     return result_list
 
@@ -41,7 +51,7 @@ def create_table_if_not_exists(cursor, table_name, fields):
     cursor.execute(create_table_query)
 
 
-def get_primary_key_fields(proto_message):
+def get_proto_primary_keys(proto_message):
     return [field.name for field in proto_message.fields if field.GetOptions().Extensions[user_pb2.primaryKey]]
 
 
@@ -68,18 +78,23 @@ def get_proto_fields(proto_message):
 
 
 #  Get fields names from the Protobuf Buffers schema
-def get_fields_name(fields):
+def get_proto_fields_names(fields):
     return [field.name for field in fields]
 
 
-def update_primary_keys(cursor, table_name, updated_primary_keys):
+def get_proto_fields_options(proto_fields):
+    return [proto_option for proto_option in proto_fields]
+
+
+def update_primary_keys(cursor, table_name, proto_primary_keys: list):
+    primary_keys_string = ", ".join(proto_primary_keys)
     update_primary_keys_query = (f"ALTER TABLE {table_name} "
                                  f"DROP PRIMARY KEY, "
-                                 f"ADD PRIMARY KEY ({updated_primary_keys})")
+                                 f"ADD PRIMARY KEY ({primary_keys_string})")
     cursor.execute(update_primary_keys_query)
 
 
-def drop_existing_fields(cursor, table_name, fields_to_drop: set):
+def drop_database_fields(cursor, table_name, fields_to_drop: set):
     drop_existing_fields_query = f"ALTER TABLE {table_name} "
     for field in fields_to_drop:
         drop_existing_fields_query += f"DROP COLUMN IF EXISTS {field},"
@@ -87,7 +102,7 @@ def drop_existing_fields(cursor, table_name, fields_to_drop: set):
     cursor.execute(drop_existing_fields_query)
 
 
-def add_new_fields(cursor, table_name, fields):
+def add_database_fields(cursor, table_name, fields):
     add_new_fields_query = f"ALTER TABLE {table_name} "
     for field in fields:
         field_name = field.name
@@ -120,34 +135,41 @@ def synchronize_tables_with_proto(proto_messages, connection):
     for proto_message in proto_messages:
         proto_table_name = get_proto_table_name(proto_message)
         proto_fields = get_proto_fields(proto_message)
-        # TODO deprecate reliance on primary_key_fields
-        primary_key_fields: list = get_primary_key_fields(proto_message)
+        # TODO might need to move this down, once table creation logic is optimized
+        proto_primary_keys: list = get_proto_primary_keys(proto_message)
 
         if proto_table_name not in database_tables:
             # TODO refactor create_table_if_not_exists() so it can add primary keys as well
             create_table_if_not_exists(cursor, proto_table_name, proto_fields)
             # TODO deprecate create_primary_key_constraint
-            create_primary_key_constraint(cursor, proto_table_name, primary_key_fields)
+            create_primary_key_constraint(cursor, proto_table_name, proto_primary_keys)
             connection.commit()
         else:
-            fields_names: list = get_fields_name(proto_fields)
-            existing_fields_schema: list = get_existing_fields(cursor, db_name, proto_table_name)
+            proto_fields_names: list = get_proto_fields_names(proto_fields)
+            proto_fields_options: list = get_proto_fields_options(proto_fields)
 
-            existing_fields_names: list = [list(field.keys())[0] for field in existing_fields_schema]
-            existing_primary_key_fields: list = [list(field.keys())[0] for field in existing_fields_schema if 'PRI' in field.get(list(field.keys())[0], [])]
+            database_fields_options: list = get_database_fields_options(cursor, db_name, proto_table_name)
+            database_fields_names: list = get_database_fields_names(database_fields_options)
+            database_primary_keys = get_primary_keys_from_database(database_fields_options)
+
+            print(proto_fields_options)
+            print("-------------------------")
+            print(database_fields_options)
 
             # Check if fields were dropped and/or added
-            if set(fields_names) != set(existing_fields_names):
-                fields_to_drop: set = set(existing_fields_names).difference(set(fields_names))
-                drop_existing_fields(cursor, proto_table_name, fields_to_drop)
-                add_new_fields(cursor, proto_table_name, proto_fields)
+            if set(proto_fields_names) != set(database_fields_names):
+                database_fields_to_drop: set = set(database_fields_names).difference(set(proto_fields_names))
+                drop_database_fields(cursor, proto_table_name, database_fields_to_drop)
+                add_database_fields(cursor, proto_table_name, proto_fields)
                 connection.commit()
 
-            # Check if primary keys were updated
-            if set(primary_key_fields) != set(existing_primary_key_fields):
-                updated_primary_keys = ", ".join(primary_key_fields)
-                update_primary_keys(cursor, proto_table_name, updated_primary_keys)
+            # Check if primary keys were changed and update
+            if set(proto_primary_keys) != set(database_primary_keys):
+                update_primary_keys(cursor, proto_table_name, proto_primary_keys)
                 connection.commit()
+
+
+
 
     # Drop tables that are no longer in the schema
     for table_name in database_tables:
