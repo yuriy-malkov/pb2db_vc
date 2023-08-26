@@ -33,12 +33,15 @@ def get_database_fields_options(cursor, db_name, table_name):
                                  f"WHERE TABLE_SCHEMA = '{db_name}' "
                                  f"AND TABLE_NAME = '{table_name}';")
     cursor.execute(get_existing_fields_query)
-    for fields in cursor.fetchall():
-        filtered_columns = [field for field in fields[1:] if field is not None and field.strip() != '']
-        filtered_columns_map = {fields[0]: filtered_columns}
-        # filtered_columns_map = {fields[0]: fields[1:]}
-        print(filtered_columns_map)
+    for rows in cursor.fetchall():
+        filtered_columns = [field for field in rows[1:] if field not in (None, '')]
+        # if data type is varchar, combine it with next element to output ex.: varchar(255)
+        # then split it into array of elements
+        if filtered_columns[0] == 'varchar':
+            filtered_columns = f'{filtered_columns[0]}({filtered_columns[1]}), {", ".join(filtered_columns[2:])}'.split(", ")
+        filtered_columns_map: map = {rows[0]: filtered_columns}
         result_list.append(filtered_columns_map)
+
     return result_list
 
 
