@@ -140,11 +140,12 @@ def synchronize_tables_with_proto(proto_messages, connection):
         proto_fields = get_proto_fields(proto_message)
         # TODO might need to move this down, once table creation logic is optimized
         proto_primary_keys: list = get_proto_primary_keys(proto_message)
-
+        # TODO Overall idea is to split  table creation, alteration and drop into 3 functions
+        # TODO this will make code more simpler, without extra if statements
         if proto_table_name not in database_tables:
-            # TODO refactor create_table_if_not_exists() so it can add primary keys as well
+            # TODO refactor create_table_if_not_exists() so it just create tables
             create_table_if_not_exists(cursor, proto_table_name, proto_fields)
-            # TODO deprecate create_primary_key_constraint
+            # TODO deprecate create_primary_key_constraint and move everything under "update keys" function
             create_primary_key_constraint(cursor, proto_table_name, proto_primary_keys)
             connection.commit()
         else:
