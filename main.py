@@ -1,6 +1,9 @@
+import os
+import argparse
+from grpc_tools import protoc
 import mariadb
 import sys
-import example1.generated.user_pb2 as user_pb2
+# import example1.generated.user_pb2 as user_pb2
 
 
 def get_database_tables(cursor):
@@ -86,6 +89,9 @@ def get_proto_fields_names(fields):
 
 
 def get_proto_fields_options(proto_fields):
+    for proto_field in proto_fields:
+        print(f"name: {proto_field.name} and options: {proto_field.GetOptions()}")
+
     return [proto_option for proto_option in proto_fields]
 
 
@@ -130,16 +136,34 @@ def add_database_fields(cursor, table_name, fields):
     cursor.execute(add_new_fields_query)
 
 
-def synchronize_tables_with_proto(proto_messages, connection):
+def infer_schema(message_instance):
+    # Get the Descriptor for the message instance
+    descriptor = message_instance.DESCRIPTOR
+
+    # Access schema information
+    for field in descriptor.fields:
+        field_name = field.name
+        field_type = field.type
+        field_label = field.label
+
+        print("Field Name:", field_name)
+        print("Field Type:", field_type)
+        print("Field Label:", field_label)
+        print("----")
+
+
+def synchronize_tables_with_proto(proto_dbs, connection):
     db_name = connection.database
     cursor = connection.cursor()
     database_tables = get_database_tables(cursor)
 
-    for proto_message in proto_messages:
-        proto_table_name = get_proto_table_name(proto_message)
-        proto_fields = get_proto_fields(proto_message)
+    for proto_db in proto_dbs:
+        proto_db_instance = infer_schema(user_pb2.User)
+        print(f"proto_object: {proto_db_instance}")
+        proto_table_name = get_proto_table_name(proto_db)
+        proto_fields = get_proto_fields(proto_db)
         # TODO might need to move this down, once table creation logic is optimized
-        proto_primary_keys: list = get_proto_primary_keys(proto_message)
+        proto_primary_keys: list = get_proto_primary_keys(proto_db)
         # TODO Overall idea is to split  table creation, alteration and drop into 3 functions
         # TODO this will make code more simpler, without extra if statements
         if proto_table_name not in database_tables:
@@ -173,18 +197,47 @@ def synchronize_tables_with_proto(proto_messages, connection):
                 connection.commit()
 
 
-
-
     # Drop tables that are no longer in the schema
     for table_name in database_tables:
-        if proto_table_name not in [get_proto_table_name(proto_message) for proto_message in proto_messages]:
+        if proto_table_name not in [get_proto_table_name(proto_db) for proto_db in proto_dbs]:
             drop_table(cursor, proto_table_name)
             connection.commit()
 
     cursor.close()
 
 
+def generate_protobufs(parent_directory, include_paths):
+    input_directory = os.path.join(parent_directory, "protos")
+    output_directory = os.path.join(parent_directory, "generated")
+
+    os.makedirs(output_directory, exist_ok=True)
+    print(f"output_directory: {output_directory}")
+    # Loop through .proto files in the input directory
+    for file in os.listdir(input_directory):
+        if file.endswith(".proto"):
+            input_filepath = os.path.join(input_directory, file)
+            protoc.main([
+                "grpc_tools.protoc",
+                f"--proto_path={include_paths}",
+                "--python_out",
+                output_directory,
+                input_filepath
+            ])
+
+
 def main():
+    # Generate compiled protobuf files
+    parser = argparse.ArgumentParser(description="Generate compiled protobufs for .proto files in a directory")
+    parser.add_argument("--parent_directory", help="Parent directory containing 'protos' subdirectory", required=True)
+    parser.add_argument("--include_paths", help="Paths to protobuf includes separated by colons/semicolons", required=True)
+
+    args = parser.parse_args()
+    parent_directory = os.path.relpath(args.parent_directory)
+    include_paths = args.parent_directory + os.pathsep + args.include_paths
+    print(f"parent_directory: {parent_directory}")
+    print(f"include_paths: {include_paths}")
+    generate_protobufs(parent_directory, include_paths)
+
     # Connect to MariaDB Platform
     try:
         connection = mariadb.connect(
@@ -199,10 +252,10 @@ def main():
         sys.exit(1)
 
     # Usage
-    proto_schema = user_pb2.DESCRIPTOR
-    proto_messages: list = proto_schema.message_types_by_name.values()
-    proto_messages: list = [message for message in proto_messages if message.GetOptions().Extensions[user_pb2.dbTable]]
-    synchronize_tables_with_proto(proto_messages, connection)
+    # proto_schema = user_pb2.DESCRIPTOR
+    # proto_messages: list = proto_schema.message_types_by_name.values()
+    # proto_dbs: list = [message for message in proto_messages if message.GetOptions().Extensions[user_pb2.dbTable]]
+    # synchronize_tables_with_proto(proto_dbs, connection)
     connection.close()
 
 
