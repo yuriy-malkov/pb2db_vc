@@ -1,1 +1,7 @@
+grpcio-tools==1.57.0beautifulsoup4==4.12.2
+grpcio==1.57.0
 grpcio-tools==1.57.0
+mariadb==1.1.7
+packaging==23.1
+protobuf==4.24.1
+soupsieve==2.4.1
