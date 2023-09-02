@@ -1,4 +1,5 @@
-grpcio-tools==1.57.0beautifulsoup4==4.12.2
+grpcio-tools==1.57.0
+beautifulsoup4==4.12.2
 grpcio==1.57.0
 grpcio-tools==1.57.0
 mariadb==1.1.7
