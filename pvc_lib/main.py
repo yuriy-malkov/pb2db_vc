@@ -3,6 +3,7 @@ import argparse
 from grpc_tools import protoc
 import mariadb
 import sys
+import importlib
 # import db_definitions.generated.user_pb2 as user_pb2
 
 
@@ -48,17 +49,18 @@ def get_database_fields_options(cursor, db_name, table_name):
     return result_list
 
 
-def create_table_if_not_exists(cursor, table_name, fields):
+def create_table_if_not_exists(cursor, table_name, fields, module):
     create_table_query = f"CREATE TABLE IF NOT EXISTS {table_name} ("
     for field in fields:
-        db_data_type = field.GetOptions().Extensions[user_pb2.dbDataType]
+        db_data_type = field.GetOptions().Extensions[module.dbDataType]
         create_table_query += f"{field.name} {db_data_type}, "
     create_table_query = create_table_query.rstrip(", ") + ")"
+    print(f"create_table_query: {create_table_query}")
     cursor.execute(create_table_query)
 
 
-def get_proto_primary_keys(proto_message):
-    return [field.name for field in proto_message.fields if field.GetOptions().Extensions[user_pb2.primaryKey]]
+def get_proto_primary_keys(proto_message, module):
+    return [field.name for field in proto_message.fields if field.GetOptions().Extensions[module.primaryKey]]
 
 
 def create_primary_key_constraint(cursor, table_name, primary_key_fields):
@@ -74,8 +76,8 @@ def drop_table(cursor, table_name):
 
 
 # Determine the table name based on the Protocol Buffers class name
-def get_proto_table_name(proto_message):
-    return proto_message.name.lower()
+def get_proto_table_name(module):
+    return module.DESCRIPTOR.package
 
 
 # Get the fields from the Protocol Buffers schema
@@ -152,23 +154,23 @@ def infer_schema(message_instance):
         print("----")
 
 
-def synchronize_tables_with_proto(proto_dbs, connection):
+def synchronize_tables_with_proto(proto_dbs, connection, module):
     db_name = connection.database
     cursor = connection.cursor()
     database_tables = get_database_tables(cursor)
+    proto_db_instance = infer_schema(module.Database)
+    print(f"proto_object: {proto_db_instance}")
+    proto_table_name = get_proto_table_name(module)
 
     for proto_db in proto_dbs:
-        proto_db_instance = infer_schema(user_pb2.User)
-        print(f"proto_object: {proto_db_instance}")
-        proto_table_name = get_proto_table_name(proto_db)
         proto_fields = get_proto_fields(proto_db)
         # TODO might need to move this down, once table creation logic is optimized
-        proto_primary_keys: list = get_proto_primary_keys(proto_db)
+        proto_primary_keys: list = get_proto_primary_keys(proto_db, module)
         # TODO Overall idea is to split  table creation, alteration and drop into 3 functions
         # TODO this will make code more simpler, without extra if statements
         if proto_table_name not in database_tables:
             # TODO refactor create_table_if_not_exists() so it just create tables
-            create_table_if_not_exists(cursor, proto_table_name, proto_fields)
+            create_table_if_not_exists(cursor, proto_table_name, proto_fields, module)
             # TODO deprecate create_primary_key_constraint and move everything under "update keys" function
             create_primary_key_constraint(cursor, proto_table_name, proto_primary_keys)
             connection.commit()
@@ -199,19 +201,14 @@ def synchronize_tables_with_proto(proto_dbs, connection):
 
     # Drop tables that are no longer in the schema
     for table_name in database_tables:
-        if proto_table_name not in [get_proto_table_name(proto_db) for proto_db in proto_dbs]:
+        if proto_table_name not in [get_proto_table_name(module) for proto_db in proto_dbs]:
             drop_table(cursor, proto_table_name)
             connection.commit()
 
     cursor.close()
 
 
-def generate_protobufs(parent_directory, include_paths):
-    input_directory = os.path.join(parent_directory, "protos")
-    output_directory = os.path.join(parent_directory, "generated")
-
-    os.makedirs(output_directory, exist_ok=True)
-    print(f"output_directory: {output_directory}")
+def generate_protobufs(input_directory, output_directory, include_paths):
     # Loop through .proto files in the input directory
     for file in os.listdir(input_directory):
         if file.endswith(".proto"):
@@ -234,10 +231,17 @@ def main():
     args = parser.parse_args()
 
     parent_directory = os.path.relpath(args.parent_directory)
+    input_directory = os.path.join(parent_directory, "protos")
+    output_directory = os.path.join(parent_directory, "generated")
+    os.makedirs(output_directory, exist_ok=True)
     include_paths = args.parent_directory + os.pathsep + args.include_paths
     print(f"parent_directory: {parent_directory}")
+    print(f"input_directory: {input_directory}")
+    print(f"output_directory: {output_directory}")
     print(f"include_paths: {include_paths}")
-    generate_protobufs(parent_directory, include_paths)
+    generate_protobufs(input_directory, output_directory, include_paths)
+    generated_protos_directory = os.path.join(output_directory, "protos")
+    print(f"generated_protos_directory: {generated_protos_directory}")
 
     # Connect to MariaDB Platform
     try:
@@ -252,11 +256,26 @@ def main():
         print(f"Error connecting to database: {e}")
         sys.exit(1)
 
+
     # Usage
-    # proto_schema = user_pb2.DESCRIPTOR
-    # proto_messages: list = proto_schema.message_types_by_name.values()
-    # proto_dbs: list = [message for message in proto_messages if message.GetOptions().Extensions[user_pb2.dbTable]]
-    # synchronize_tables_with_proto(proto_dbs, connection)
+    sys.path.insert(0, generated_protos_directory)
+    # Get a list of all .pb2.py files in the directory
+    pb2_files = [f for f in os.listdir(generated_protos_directory) if f.endswith("pb2.py")]
+    print(f"pb2_files: {pb2_files}")
+
+    # Dynamically import and access classes from each module
+    for pb2_file in pb2_files:
+        module_name = os.path.splitext(pb2_file)[0]
+        print(f"module_name: {module_name}")
+        module = importlib.import_module(module_name)
+        print(f"module: {module}")
+        proto_schema = module.DESCRIPTOR
+        print(f"schema: {proto_schema}")
+        proto_messages: list = proto_schema.message_types_by_name.values()
+        print(f"package: {proto_schema.package}")
+        proto_dbs: list = [message for message in proto_messages if message.GetOptions().Extensions[module.dbTable]]
+        synchronize_tables_with_proto(proto_dbs, connection, module)
+
     connection.close()
 
 

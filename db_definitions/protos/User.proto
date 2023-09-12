@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+package user;
+
 import "google/protobuf/descriptor.proto";
 
 extend google.protobuf.MessageOptions {
@@ -14,7 +16,7 @@ extend google.protobuf.FieldOptions {
     string defaultValue = 50104;
 }
 
-message User {
+message Database {
     option (dbTable) = true;
     int64 id = 1 [(dbDataType) = "MEDIUMINT", (primaryKey) = true, (notNull) = true, (autoIncrement) = true];
     string firstName = 2 [(dbDataType) = "VARCHAR(255)"];
