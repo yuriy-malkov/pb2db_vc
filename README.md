@@ -1,6 +1,20 @@
 # pb2db_vc
 Protobuf to DB version control
 
+### Setup
+You should create venv using following command:
+```bash
+python3 -m venv pvc_lib/venv
+```
+Activate it:
+```bash
+source pvc_lib/venv/bin/activate
+```
+
+Setup requirements:
+```bash
+pip3 install -r pvc_lib/requirements.txt
+```
 
 ### How to build 
 To build User.proto file from command line run following command:
