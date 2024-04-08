@@ -4,7 +4,6 @@ from grpc_tools import protoc
 import mariadb
 import sys
 import importlib
-# import db_definitions.generated.user_pb2 as user_pb2
 
 
 def get_database_tables(cursor):
@@ -274,7 +273,9 @@ def main():
         proto_messages: list = proto_schema.message_types_by_name.values()
         print(f"package: {proto_schema.package}")
         proto_dbs: list = [message for message in proto_messages if message.GetOptions().Extensions[module.dbTable]]
+        print(f"synchronizing tables with {module_name}")
         synchronize_tables_with_proto(proto_dbs, connection, module)
+        del module
 
     connection.close()
 

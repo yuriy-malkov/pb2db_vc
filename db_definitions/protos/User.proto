@@ -24,14 +24,5 @@ message Database {
     string email = 4 [(dbDataType) = "VARCHAR(255)", (notNull) = true];
     string address = 5 [(dbDataType) = "VARCHAR(255)", (defaultValue) = "'10 Lafferty Street'"];
     string secretToken = 6 [(dbDataType) = "VARCHAR(255)", (defaultValue) = ""];
-}
-
-message GetUserInfoRequest {
-    string email = 1;
-}
-
-message UserInfoResponse {
-    string email = 1;
-    string firstName = 2;
-    string lastName = 3;
+    string country = 7 [(dbDataType) = "VARCHAR(255)", (defaultValue) = ""];
 }
