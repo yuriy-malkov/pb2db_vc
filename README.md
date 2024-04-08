@@ -11,7 +11,7 @@ Activate it:
 source pvc_lib/venv/bin/activate
 ```
 
-Setup requirements:
+Setup requirements.txt:
 ```bash
 pip3 install -r pvc_lib/requirements.txt
 ```
